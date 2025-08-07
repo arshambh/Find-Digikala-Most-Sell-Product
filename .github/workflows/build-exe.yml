@@ -1,0 +1,61 @@
+name: Build EXE on exe commit
+
+on:
+  push:
+    branches:
+      - main
+    # Only run if commit message contains 'exe'
+    # This uses a filter in the workflow itself (see 'if' in jobs)
+    # GitHub Actions does not natively support commit message filtering in 'on' block
+
+jobs:
+  build-exe:
+    runs-on: windows-latest
+    if: contains(github.event.head_commit.message, 'exe')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller jdatetime openpyxl requests
+
+      - name: Build 64-bit EXE
+        run: |
+          pyinstaller --onefile --name main_x64 main.py
+
+      - name: Upload 64-bit EXE artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: main_x64
+          path: dist/main_x64.exe
+
+      # For 32-bit build, use a 32-bit Python. GitHub-hosted runners are 64-bit, so true 32-bit build is tricky.
+      # The following uses a 32-bit Python from chocolatey.
+      - name: Install 32-bit Python
+        run: choco install python --version=3.10.0 --x86 -y
+
+      - name: Add 32-bit Python to PATH
+        run: |
+          echo \"C:\\Program Files (x86)\\Python310\" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Install dependencies for 32-bit Python
+        run: |
+          \"C:\\Program Files (x86)\\Python310\\python.exe\" -m pip install --upgrade pip
+          \"C:\\Program Files (x86)\\Python310\\python.exe\" -m pip install pyinstaller jdatetime openpyxl requests
+
+      - name: Build 32-bit EXE
+        run: |
+          \"C:\\Program Files (x86)\\Python310\\Scripts\\pyinstaller.exe\" --onefile --name main_x86 main.py
+
+      - name: Upload 32-bit EXE artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: main_x86
+          path: dist/main_x86.exe
