@@ -115,8 +115,8 @@ jobs:
             artifacts/digikala-best-products-finder_x86_exe/digikala-best-products-finder_x86.exe
           # ایجاد یک تگ منحصر به فرد برای هر Release بر اساس تاریخ و شماره اجرای workflow
           tag_name: v${{ env.DATE }}-${{ github.run_number }}
-          # عنوان Release
-          name: "Build ${{ env.DATE }} (#${{ github.run_number }})"
+          # عنوان Release با فرمت درخواستی
+          name: "digikala-best-products-finder ${{ env.DATE }}"
           # متن توضیحات Release (می‌تواند شامل پیام کامیت باشد)
           body: |
             Automated build triggered by commit:
