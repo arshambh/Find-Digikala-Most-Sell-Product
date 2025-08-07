@@ -262,6 +262,7 @@ def sort_products_by_rating(products_info: list[dict]) -> list[dict]:
     )
 
 
+
 def export_products_to_excel(sorted_products_info: list[dict], api_url: str):
     """
     ذخیره لیست محصولات مرتب‌شده در یک فایل اکسل در پوشه export-data
