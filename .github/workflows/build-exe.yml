@@ -35,15 +35,15 @@ jobs:
           pip install pyinstaller jdatetime openpyxl requests
 
       - name: Build 64-bit EXE
-        # ساخت فایل exe با نام main_x64.exe
-        run: pyinstaller --onefile --name main_x64 main.py
+        # ساخت فایل exe با نام مشخص شده
+        run: pyinstaller --onefile --name digikala-best-products-finder_x64 main.py
 
       - name: Upload 64-bit EXE artifact
         # آپلود فایل exe ساخته شده به عنوان آرتیفکت برای استفاده در job بعدی
         uses: actions/upload-artifact@v4
         with:
-          name: main_x64_exe
-          path: dist/main_x64.exe
+          name: digikala-best-products-finder_x64_exe
+          path: dist/digikala-best-products-finder_x64.exe
 
   # ==================================
   #   Job برای ساخت نسخه 32 بیتی (x86)
@@ -71,15 +71,15 @@ jobs:
           pip install pyinstaller jdatetime openpyxl requests
 
       - name: Build 32-bit EXE
-        # ساخت فایل exe با نام main_x86.exe
-        run: pyinstaller --onefile --name main_x86 main.py
+        # ساخت فایل exe با نام مشخص شده
+        run: pyinstaller --onefile --name digikala-best-products-finder_x86 main.py
 
       - name: Upload 32-bit EXE artifact
         # آپلود فایل exe ساخته شده به عنوان آرتیفکت برای استفاده در job بعدی
         uses: actions/upload-artifact@v4
         with:
-          name: main_x86_exe
-          path: dist/main_x86.exe
+          name: digikala-best-products-finder_x86_exe
+          path: dist/digikala-best-products-finder_x86.exe
 
   # ==================================
   #   Job برای ایجاد Release و آپلود فایل‌ها
@@ -93,6 +93,11 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Get current date
+        # دریافت تاریخ فعلی و ذخیره آن در یک متغیر محیطی
+        id: date
+        run: echo "DATE=$(date +'%Y-%m-%d')" >> $GITHUB_ENV
+
       - name: Download all build artifacts
         # دانلود تمام آرتیفکت‌های ساخته شده (فایل‌های exe)
         uses: actions/download-artifact@v4
@@ -106,14 +111,13 @@ jobs:
         with:
           # فایل‌هایی که باید به Release ضمیمه شوند
           files: |
-            artifacts/main_x64_exe/main_x64.exe
-            artifacts/main_x86_exe/main_x86.exe
-          # ایجاد یک تگ منحصر به فرد برای هر Release بر اساس شماره اجرای workflow
-          tag_name: v${{ github.run_number }}
+            artifacts/digikala-best-products-finder_x64_exe/digikala-best-products-finder_x64.exe
+            artifacts/digikala-best-products-finder_x86_exe/digikala-best-products-finder_x86.exe
+          # ایجاد یک تگ منحصر به فرد برای هر Release بر اساس تاریخ و شماره اجرای workflow
+          tag_name: v${{ env.DATE }}-${{ github.run_number }}
           # عنوان Release
-          name: "Build ${{ github.run_number }}"
+          name: "Build ${{ env.DATE }} (#${{ github.run_number }})"
           # متن توضیحات Release (می‌تواند شامل پیام کامیت باشد)
           body: |
             Automated build triggered by commit:
             `${{ github.event.head_commit.message }}`
-
