@@ -137,52 +137,48 @@ def fetch_pagination_info(api_url: str) -> dict | None:
                 'total_pages': total_pages
             }
         else:
-            print("اطلاعات صفحه‌بندی در پاسخ یافت نشد")
+            print("Pagination info not found in response.")
             return None
 
     except requests.exceptions.RequestException as e:
-        print(f"خطا در ارسال درخواست: {e}")
+        print(f"Request error: {e}")
         return None
     except ValueError as e:
-        print(f"خطا در پردازش JSON: {e}")
+        print(f"JSON processing error: {e}")
         return None
     except Exception as e:
-        print(f"خطای غیرمنتظره: {e}")
+        print(f"Unexpected error: {e}")
         return None
 
 
-def generate_all_pages_for_fetch_data(api_url: str) -> list[str]:
+def generate_all_pages_for_fetch_data(api_url: str, max_pages: int = 100) -> list[str]:
     """
     تابعی که همه صفحات را برای دریافت داده‌ها پیمایش می‌کند
     @param api_url: آدرس API
+    @param max_pages: حداکثر تعداد صفحاتی که باید پیمایش شود
     @return: لیست آدرس‌های API همه صفحات
     """
     all_pages = []
     current_page = 1
     total_pages = fetch_pagination_info(api_url)['total_pages']
 
-    while current_page <= total_pages:
+    # اعتبارسنجی max_pages
+    if max_pages < 1 or max_pages > 100:
+        max_pages = 100
+    if max_pages > total_pages:
+        max_pages = total_pages
 
-        if current_page > 10:
-            break
-
+    while current_page <= total_pages and current_page <= max_pages:
         # تجزیه URL به اجزای مختلف
         parsed_url = urlparse(api_url)
-
         # تبدیل رشته پارامترها به دیکشنری
-        # parse_qs مقادیر را به صورت لیست برمی‌گرداند (مثال: {'page': ['1']})
         query_params = parse_qs(parsed_url.query)
-
         # تغییر مقدار پارامتر 'page'
         query_params['page'] = [str(current_page)]
-
         # تبدیل دیکشنری جدید به رشته پارامترها
         new_query_string = urlencode(query_params, doseq=True)
-
         # ساختن دوباره URL با پارامترهای جدید
-        # از متد _replace برای جایگزینی بخش query در URL تجزیه‌شده استفاده می‌کنیم
         new_url_parts = parsed_url._replace(query=new_query_string)
-
         # تبدیل اجزای جدید به یک رشته URL کامل
         final_url = urlunparse(new_url_parts)
         all_pages.append(final_url)
@@ -199,7 +195,7 @@ def fetch_all_pages_data(total_api_urls: list[str]) -> list[dict]:
     user_agent = generate_user_agent()
     all_data = []
     for idx, url in enumerate(total_api_urls, start=1):
-        print(f"در حال دریافت اطلاعات صفحه {idx} از {len(total_api_urls)}")
+        print(f"Fetching data for page {idx} of {len(total_api_urls)}")
         headers = {
             'User-Agent': user_agent,
             'Accept': 'application/json',
@@ -214,10 +210,10 @@ def fetch_all_pages_data(total_api_urls: list[str]) -> list[dict]:
             data = response.json()
             all_data.append(data)
         except requests.exceptions.RequestException as e:
-            print(f"خطا در دریافت صفحه {idx}: {e}")
+            print(f"Error fetching page {idx}: {e}")
             all_data.append(None)
         except ValueError as e:
-            print(f"خطا در پردازش JSON صفحه {idx}: {e}")
+            print(f"JSON processing error on page {idx}: {e}")
             all_data.append(None)
         time.sleep(1)
     return all_data
@@ -309,7 +305,7 @@ def export_products_to_excel(sorted_products_info: list[dict], api_url: str):
         for idx, item in enumerate(sorted_products_info, start=2):
             row = [item.get(h, "") for h in headers if h != "Link"]
             link_url = f"https://www.digikala.com/product/dkp-{item.get('id')}"
-            row.append("مشاهده محصول")
+            row.append("مشاهده کالا")
             ws.append(row)
             # تنظیم هایپرلینک برای سلول آخر (ستون Link)
             link_cell = ws.cell(row=idx, column=len(headers))
@@ -319,11 +315,22 @@ def export_products_to_excel(sorted_products_info: list[dict], api_url: str):
         ws.append(["No data"])
 
     wb.save(filepath)
-    print(f"فایل اکسل با موفقیت ذخیره شد: {filepath}")
+    print(f"Excel file saved successfully: {filepath}")
 
 
 def main():
-    url = "https://www.digikala.com/search/category-headphone/miscellaneous/?has_selling_stock=1&sort=21"
+    # دریافت url از کاربر
+    url = input("Please enter the Digikala category URL: ").strip()
+    # دریافت مقدار max_pages از کاربر
+    try:
+        max_pages_input = input("Maximum number of pages to search (default 100): ").strip()
+        max_pages = int(max_pages_input) if max_pages_input else 100
+    except ValueError:
+        max_pages = 100
+    # اعتبارسنجی مقدار max_pages
+    if max_pages < 1 or max_pages > 100:
+        max_pages = 100
+
     api_url = convert_to_api_url(url)
     print(f"API URL: {api_url}")
 
@@ -333,15 +340,23 @@ def main():
 
     # Test the pagination info fetch
     if api_url:
-        total_api_urls = generate_all_pages_for_fetch_data(api_url)
-        print(f"Total API URLs: {len(total_api_urls)}")
-        all_pages_data = fetch_all_pages_data(total_api_urls)
-        print(f"Collected {len(all_pages_data)} responses.")
-        products_info = extract_products_info(all_pages_data)
-        print(f"Collected {len(products_info)} products info.")
-        sorted_products_info = sort_products_by_rating(products_info)
-        print(f"Sorted products info: {sorted_products_info}")
-        export_products_to_excel(sorted_products_info, api_url)
+        # ابتدا تعداد صفحات واقعی را می‌گیریم
+        pagination_info = fetch_pagination_info(api_url)
+        if pagination_info:
+            total_pages = pagination_info['total_pages']
+            if max_pages > total_pages:
+                max_pages = total_pages
+            print(f"Total pages: {total_pages}, Pages to search: {max_pages}")
+            total_api_urls = generate_all_pages_for_fetch_data(api_url, max_pages)
+            print(f"Total API URLs: {len(total_api_urls)}")
+            all_pages_data = fetch_all_pages_data(total_api_urls)
+            print(f"Collected {len(all_pages_data)} responses.")
+            products_info = extract_products_info(all_pages_data)
+            print(f"Collected {len(products_info)} products info.")
+            sorted_products_info = sort_products_by_rating(products_info)
+            export_products_to_excel(sorted_products_info, api_url)
+        else:
+            print("Error fetching pagination info.")
 
 
 if __name__ == "__main__":
