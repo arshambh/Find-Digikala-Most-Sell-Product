@@ -31,7 +31,7 @@ jobs:
           pyinstaller --onefile --name main_x64 main.py
 
       - name: Upload 64-bit EXE artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4  # <-- Changed from v3 to v4
         with:
           name: main_x64
           path: dist/main_x64.exe
@@ -43,19 +43,19 @@ jobs:
 
       - name: Add 32-bit Python to PATH
         run: |
-          echo \"C:\\Program Files (x86)\\Python310\" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          echo "C:\Program Files (x86)\Python310" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Install dependencies for 32-bit Python
         run: |
-          \"C:\\Program Files (x86)\\Python310\\python.exe\" -m pip install --upgrade pip
-          \"C:\\Program Files (x86)\\Python310\\python.exe\" -m pip install pyinstaller jdatetime openpyxl requests
+          "C:\Program Files (x86)\Python310\python.exe" -m pip install --upgrade pip
+          "C:\Program Files (x86)\Python310\python.exe" -m pip install pyinstaller jdatetime openpyxl requests
 
       - name: Build 32-bit EXE
         run: |
-          \"C:\\Program Files (x86)\\Python310\\Scripts\\pyinstaller.exe\" --onefile --name main_x86 main.py
+          "C:\Program Files (x86)\Python310\Scripts\pyinstaller.exe" --onefile --name main_x86 main.py
 
       - name: Upload 32-bit EXE artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4  # <-- Changed from v3 to v4
         with:
           name: main_x86
           path: dist/main_x86.exe
