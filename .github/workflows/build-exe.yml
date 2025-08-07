@@ -1,62 +1,119 @@
-name: Build EXE on exe commit
+# نام workflow
+name: Build EXE and Create Release on 'exe' commit
 
+# تریگر: این workflow زمانی اجرا می‌شود که یک push به شاخه main انجام شود
 on:
   push:
     branches:
       - main
-    # Only run if commit message contains 'exe'
-    # This uses a filter in the workflow itself (see 'if' in jobs)
 
 jobs:
-  build-exe:
-    runs-on: windows-latest
+  # ==================================
+  #   Job برای ساخت نسخه 64 بیتی (x64)
+  # ==================================
+  build-x64:
+    # شرط اجرا: فقط در صورتی اجرا شود که پیام کامیت شامل کلمه 'exe' باشد
     if: contains(github.event.head_commit.message, 'exe')
+    # اجرا روی آخرین نسخه ویندوز
+    runs-on: windows-latest
     steps:
       - name: Checkout code
+        # دریافت آخرین نسخه کد از مخزن
         uses: actions/checkout@v4
 
-      # ==================================
-      #        64-bit (x64) Build
-      # ==================================
       - name: Set up 64-bit Python 3.10
-        uses: actions/setup-python@v5 # Use the latest version
+        # نصب پایتون نسخه 3.10 با معماری 64 بیتی
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
           architecture: 'x64'
 
       - name: Install dependencies (x64)
+        # نصب کتابخانه‌های مورد نیاز
         run: |
           python -m pip install --upgrade pip
           pip install pyinstaller jdatetime openpyxl requests
 
       - name: Build 64-bit EXE
+        # ساخت فایل exe با نام main_x64.exe
         run: pyinstaller --onefile --name main_x64 main.py
 
       - name: Upload 64-bit EXE artifact
+        # آپلود فایل exe ساخته شده به عنوان آرتیفکت برای استفاده در job بعدی
         uses: actions/upload-artifact@v4
         with:
-          name: main_x64
+          name: main_x64_exe
           path: dist/main_x64.exe
 
-      # ==================================
-      #        32-bit (x86) Build
-      # ==================================
+  # ==================================
+  #   Job برای ساخت نسخه 32 بیتی (x86)
+  # ==================================
+  build-x86:
+    # شرط اجرا: فقط در صورتی اجرا شود که پیام کامیت شامل کلمه 'exe' باشد
+    if: contains(github.event.head_commit.message, 'exe')
+    # اجرا روی آخرین نسخه ویندوز
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Set up 32-bit Python 3.10
-        uses: actions/setup-python@v5 # Use the action again for the 32-bit version
+        # نصب پایتون نسخه 3.10 با معماری 32 بیتی
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-          architecture: 'x86' # Specify x86 architecture here
+          architecture: 'x86'
 
       - name: Install dependencies (x86)
+        # نصب کتابخانه‌های مورد نیاز
         run: |
           python -m pip install --upgrade pip
           pip install pyinstaller jdatetime openpyxl requests
 
       - name: Build 32-bit EXE
+        # ساخت فایل exe با نام main_x86.exe
         run: pyinstaller --onefile --name main_x86 main.py
 
       - name: Upload 32-bit EXE artifact
+        # آپلود فایل exe ساخته شده به عنوان آرتیفکت برای استفاده در job بعدی
         uses: actions/upload-artifact@v4
         with:
-          name: main_x86
+          name: main_x86_exe
           path: dist/main_x86.exe
+
+  # ==================================
+  #   Job برای ایجاد Release و آپلود فایل‌ها
+  # ==================================
+  create-release:
+    # این job به jobهای ساخت (build) وابسته است و پس از اتمام موفقیت‌آمیز آن‌ها اجرا می‌شود
+    needs: [build-x64, build-x86]
+    # اجرا روی آخرین نسخه اوبونتو (برای این کار سریع‌تر و بهینه‌تر است)
+    runs-on: ubuntu-latest
+    # مجوزهای لازم برای ایجاد Release
+    permissions:
+      contents: write
+    steps:
+      - name: Download all build artifacts
+        # دانلود تمام آرتیفکت‌های ساخته شده (فایل‌های exe)
+        uses: actions/download-artifact@v4
+        with:
+          # دانلود در پوشه‌ای به نام artifacts
+          path: artifacts
+
+      - name: Create Release and Upload Assets
+        # استفاده از یک action آماده برای ایجاد Release
+        uses: softprops/action-gh-release@v2
+        with:
+          # فایل‌هایی که باید به Release ضمیمه شوند
+          files: |
+            artifacts/main_x64_exe/main_x64.exe
+            artifacts/main_x86_exe/main_x86.exe
+          # ایجاد یک تگ منحصر به فرد برای هر Release بر اساس شماره اجرای workflow
+          tag_name: v${{ github.run_number }}
+          # عنوان Release
+          name: "Build ${{ github.run_number }}"
+          # متن توضیحات Release (می‌تواند شامل پیام کامیت باشد)
+          body: |
+            Automated build triggered by commit:
+            `${{ github.event.head_commit.message }}`
+
